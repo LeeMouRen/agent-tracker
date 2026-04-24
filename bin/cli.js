@@ -9,6 +9,15 @@ const StateManager = require('../src/tracker/state');
 const AgentRouter = require('../src/router');
 const path = require('path');
 
+process.on('uncaughtException', err => {
+  if (err.code === 'ERR_USE_AFTER_CLOSE') {
+    process.exit(0);
+  } else {
+    console.error(err);
+    process.exit(1);
+  }
+});
+
 async function main() {
   // 获取所有活跃的 Sessions
   const sessions = StateManager.getAllSessions();
@@ -74,8 +83,15 @@ async function main() {
       pageSize: 12,
       emptyText: '🤔 没有找到匹配的会话...'
     }
-  ]);
+  ]).catch(err => {
+    if (err.name === 'ExitPromptError' || err.message.includes('readline')) {
+      // Ignored
+      process.exit(0);
+    }
+    throw err;
+  });
 
+  if (!answers) return;
   const targetSession = answers.selectedSession;
   
   console.log(`\n🚀 正在跳转到: ${targetSession.sessionId}...`);
@@ -90,4 +106,9 @@ async function main() {
   }
 }
 
-main();
+main().catch(err => {
+  // Ignore specific inquirer close errors
+  if (err.code !== 'ERR_USE_AFTER_CLOSE') {
+    console.error(err);
+  }
+});

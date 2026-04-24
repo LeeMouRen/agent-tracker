@@ -49,7 +49,7 @@ function install() {
   for (const [event, status] of Object.entries(HOOKS_MAP)) {
     // 构建我们新的 Agent Tracker Command Hook 结构
     // 强制继承当前环境变量以保证能够获取 TMUX 等信息
-    const cmdStr = `sh -c 'node "${RECORD_BIN_PATH}" --session "$CLAUDE_SESSION_ID" --status "${status}"' &> /dev/null &`;
+    const cmdStr = `node "${RECORD_BIN_PATH}" --session "$CLAUDE_SESSION_ID" --status "${status}" --tmux "$TMUX" --tmux-pane "$TMUX_PANE" --term-program "$TERM_PROGRAM" --iterm-session "$ITERM_SESSION_ID" &> /dev/null &`;
     const newHookDef = {
       type: "command",
       command: cmdStr,

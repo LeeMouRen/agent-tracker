@@ -47,11 +47,23 @@ async function main() {
 
   // 简单解析命令行参数 (如 --session xxx --status yyy)
   for (let i = 0; i < args.length; i++) {
-    if (args[i] === '--session' && args[i+1]) {
+    if (args[i] === '--session' && args[i+1] && !args[i+1].startsWith('$')) {
       sessionId = args[i+1];
       i++;
     } else if (args[i] === '--status' && args[i+1]) {
       status = args[i+1];
+      i++;
+    } else if (args[i] === '--tmux' && args[i+1] && !args[i+1].startsWith('$')) {
+      process.env.TMUX = args[i+1];
+      i++;
+    } else if (args[i] === '--tmux-pane' && args[i+1] && !args[i+1].startsWith('$')) {
+      process.env.TMUX_PANE = args[i+1];
+      i++;
+    } else if (args[i] === '--term-program' && args[i+1] && !args[i+1].startsWith('$')) {
+      process.env.TERM_PROGRAM = args[i+1];
+      i++;
+    } else if (args[i] === '--iterm-session' && args[i+1] && !args[i+1].startsWith('$')) {
+      process.env.ITERM_SESSION_ID = args[i+1];
       i++;
     }
   }
