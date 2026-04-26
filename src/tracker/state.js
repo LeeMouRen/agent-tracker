@@ -7,6 +7,48 @@ const DATA_DIR = path.join(require('os').homedir(), '.agent-tracker');
 const SESSIONS_DIR = path.join(DATA_DIR, 'sessions');
 
 class StateManager {
+  static mergeRoutingInfo(currentState, nextState) {
+    const existing = currentState?.routingInfo || {};
+    const incoming = nextState?.routingInfo || {};
+
+    if (!Object.keys(existing).length) return incoming;
+    if (!Object.keys(incoming).length) return existing;
+
+    const merged = {
+      ...existing,
+      ...incoming
+    };
+
+    const sameGhosttySession = existing.termProgram === 'ghostty'
+      && incoming.termProgram === 'ghostty'
+      && existing.tty
+      && incoming.tty
+      && existing.tty === incoming.tty
+      && currentState?.projectPath
+      && nextState?.projectPath
+      && currentState.projectPath === nextState.projectPath;
+
+    if (sameGhosttySession) {
+      const stableKeys = [
+        'ghosttyWindowIndex',
+        'ghosttyWindowName',
+        'ghosttyWindowId',
+        'ghosttyTabName',
+        'ghosttyTabIndex',
+        'ghosttyTerminalId',
+        'ghosttyTerminalName'
+      ];
+
+      for (const key of stableKeys) {
+        if (existing[key] !== undefined && existing[key] !== null && existing[key] !== '') {
+          merged[key] = existing[key];
+        }
+      }
+    }
+
+    return merged;
+  }
+
   /**
    * 初始化存储目录
    */
@@ -64,6 +106,7 @@ class StateManager {
     const updatedState = {
       ...currentState,
       ...data,
+      routingInfo: this.mergeRoutingInfo(currentState, data),
       lastUpdatedAt: Date.now()
     };
 

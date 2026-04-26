@@ -1,10 +1,11 @@
 // @ts-nocheck
 import { ActionPanel, Action, List, Icon, Color, closeMainWindow, showToast, Toast } from "@raycast/api";
 import { useEffect, useState } from "react";
-import { exec, execSync } from "child_process";
 import fs from "fs";
 import os from "os";
 import path from "path";
+
+const TRACKER_ROOT = "/Users/bytedance/data/agent-tracker";
 
 // 定义状态的接口
 interface RoutingInfo {
@@ -32,6 +33,10 @@ interface SessionData {
 export default function Command() {
   const [sessions, setSessions] = useState<SessionData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  const getAgentRouter = () => {
+    return require(path.join(TRACKER_ROOT, "src/router"));
+  };
 
   // 加载数据
   useEffect(() => {
@@ -93,59 +98,15 @@ export default function Command() {
   };
 
   const jumpToSession = async (session: SessionData) => {
-    const { routingInfo } = session;
-
-    // 我们需要立即关闭 Raycast 窗口，这样后续的激活才能真正聚焦目标
-    await closeMainWindow();
-
     try {
-      // 1. 外层应用激活
-      if (routingInfo.termProgram === "ghostty") {
-        execSync(`osascript -e 'tell application "Ghostty" to activate'`);
-      } else if (routingInfo.termProgram === "iTerm.app" && routingInfo.iTermSessionId) {
-        execSync(`
-          osascript -e '
-            tell application "iTerm2"
-              activate
-              set targetSessionId to "${routingInfo.iTermSessionId}"
-              repeat with w in windows
-                repeat with t in tabs of w
-                  set sessionsList to sessions of t
-                  repeat with s in sessionsList
-                    if id of s contains targetSessionId or uniqueID of s contains targetSessionId then
-                      select t
-                      select w
-                      select s
-                      return "success"
-                    end if
-                  end repeat
-                end repeat
-              end repeat
-            end tell
-          '
-        `);
+      const AgentRouter = getAgentRouter();
+      const success = await AgentRouter.goto(session);
+
+      if (!success) {
+        throw new Error("Router returned false");
       }
 
-      // 等待操作系统的窗口激活完成
-      await new Promise((resolve) => setTimeout(resolve, 100));
-
-      // 2. 内层 Tmux 激活
-      if (routingInfo.hasTmux && routingInfo.tmuxPane) {
-        const paneId = routingInfo.tmuxPane;
-        // 指定 PATH 确保能找到 tmux
-        const execOpts = { env: { ...process.env, PATH: `${process.env.PATH}:/opt/homebrew/bin:/usr/local/bin` } };
-
-        try {
-          execSync(`tmux switch-client -t "${paneId}"`, execOpts);
-        } catch (e: any) {
-          console.error("Tmux error", e.message);
-          showToast({
-            style: Toast.Style.Failure,
-            title: "Tmux Jump failed",
-            message: e.message
-          });
-        }
-      }
+      await closeMainWindow();
     } catch (e: any) {
       console.error("Jump execution error:", e);
       showToast({

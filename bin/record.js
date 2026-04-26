@@ -227,7 +227,7 @@ async function main() {
   }
 
   // 1. 自动提取当前执行环境的“路由指纹”
-  const routingInfo = EnvironmentHook.extractRoutingInfo();
+  const routingInfo = EnvironmentHook.extractRoutingInfo({ projectPath });
 
   // 2. 组装要写入 JSON 的完整业务状态和路由信息
   const sessionData = {

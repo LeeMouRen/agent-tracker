@@ -1,13 +1,30 @@
 const TmuxNavigator = require('../navigators/tmux');
 const GhosttyNavigator = require('../navigators/ghostty');
 const ITermNavigator = require('../navigators/iterm');
+const ZellijNavigator = require('../navigators/zellij');
 
 class AgentRouter {
+  static normalizeTarget(target) {
+    if (target && target.routingInfo) {
+      return {
+        routingInfo: target.routingInfo,
+        projectPath: target.projectPath
+      };
+    }
+
+    return {
+      routingInfo: target,
+      projectPath: target?.projectPath
+    };
+  }
+
   /**
    * 执行路由跳转
    * @param {Object} routingInfo 从 JSON 状态文件中读取的路由指纹
    */
-  static async goto(routingInfo) {
+  static async goto(target) {
+    const { routingInfo, projectPath } = this.normalizeTarget(target);
+
     if (!routingInfo) {
       console.error("[Router] 缺少路由指纹信息");
       return false;
@@ -19,7 +36,7 @@ class AgentRouter {
     let externalTermActivated = false;
     
     if (routingInfo.termProgram === 'ghostty') {
-      externalTermActivated = GhosttyNavigator.activate(routingInfo.ghosttyTabName);
+      externalTermActivated = GhosttyNavigator.activate({ ...routingInfo, projectPath });
     } else if (routingInfo.termProgram === 'iTerm.app') {
       externalTermActivated = ITermNavigator.activate(routingInfo.iTermSessionId);
     } else if (routingInfo.termProgram === 'Apple_Terminal') {
@@ -34,10 +51,9 @@ class AgentRouter {
         let multiplexerActivated = false;
 
         if (routingInfo.hasTmux) {
-          multiplexerActivated = TmuxNavigator.switchClient(routingInfo.tmuxPane);
+          multiplexerActivated = TmuxNavigator.switchClient(routingInfo);
         } else if (routingInfo.hasZellij) {
-          console.warn("[Router] 暂未实现 Zellij 精确跳转");
-          // TODO: 实现 ZellijNavigator
+          multiplexerActivated = ZellijNavigator.switchClient({ ...routingInfo, projectPath });
         }
 
         console.log("[Router] 路由跳转指令执行完毕");

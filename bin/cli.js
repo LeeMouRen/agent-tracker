@@ -97,7 +97,7 @@ async function main() {
   console.log(`\n🚀 正在跳转到: ${targetSession.sessionId}...`);
   
   // 执行跨应用路由跳转
-  const success = await AgentRouter.goto(targetSession.routingInfo);
+  const success = await AgentRouter.goto(targetSession);
 
   if (success) {
     console.log("✅ 跳转已执行");
