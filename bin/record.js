@@ -212,7 +212,6 @@ async function main() {
                   try {
                       const entry = JSON.parse(lines[i]);
                       if (entry.project === projectPath && entry.display) {
-                          sessionId = entry.sessionId; // 将真正的 sessionId 覆盖假名
                           let text = String(entry.display).trim();
                           text = text.replace(/<system[-_]?(?:instruction|reminder)[^>]*>[\s\S]*?<\/system[-_]?(?:instruction|reminder)>/gi, '');
                           text = text.replace(/^[\s\n]*<[^>]+>[\s\S]*?<\/[^>]+>[\s\n]*/gi, '');

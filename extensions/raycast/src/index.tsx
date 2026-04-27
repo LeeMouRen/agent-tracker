@@ -2,10 +2,33 @@
 import { ActionPanel, Action, List, Icon, Color, closeMainWindow, showToast, Toast } from "@raycast/api";
 import { useEffect, useState } from "react";
 import fs from "fs";
-import os from "os";
 import path from "path";
 
-const TRACKER_ROOT = "/Users/bytedance/data/agent-tracker";
+const findTrackerRoot = () => {
+  const seeds = [process.env.AGENT_TRACKER_ROOT, __dirname, process.cwd()].filter(Boolean) as string[];
+  const visited = new Set<string>();
+
+  for (const seed of seeds) {
+    let current = path.resolve(seed);
+    while (!visited.has(current)) {
+      visited.add(current);
+
+      const routerPath = path.join(current, "src", "router", "index.js");
+      const statePath = path.join(current, "src", "tracker", "state.js");
+      if (fs.existsSync(routerPath) && fs.existsSync(statePath)) {
+        return current;
+      }
+
+      const parent = path.dirname(current);
+      if (parent === current) break;
+      current = parent;
+    }
+  }
+
+  throw new Error("Cannot locate agent-tracker repository root");
+};
+
+const TRACKER_ROOT = findTrackerRoot();
 
 // 定义状态的接口
 interface RoutingInfo {
@@ -38,6 +61,10 @@ export default function Command() {
     return require(path.join(TRACKER_ROOT, "src/router"));
   };
 
+  const getStateManager = () => {
+    return require(path.join(TRACKER_ROOT, "src/tracker/state"));
+  };
+
   // 加载数据
   useEffect(() => {
     loadSessions();
@@ -45,40 +72,19 @@ export default function Command() {
 
   const loadSessions = () => {
     setIsLoading(true);
-    const sessionsDir = path.join(os.homedir(), ".agent-tracker", "sessions");
-    const activeSessions: SessionData[] = [];
+    try {
+      const StateManager = getStateManager();
+      const activeSessions = StateManager.getAllSessions() as SessionData[];
 
-    if (!fs.existsSync(sessionsDir)) {
+      // 按照更新时间排序，最新鲜的在最上面
+      activeSessions.sort((a, b) => b.lastUpdatedAt - a.lastUpdatedAt);
+      setSessions(activeSessions);
+    } catch (e) {
+      console.error("Load sessions error:", e);
+      setSessions([]);
+    } finally {
       setIsLoading(false);
-      return;
     }
-
-    const cutoff = Date.now() - 24 * 60 * 60 * 1000;
-    const files = fs.readdirSync(sessionsDir);
-
-    for (const file of files) {
-      if (!file.endsWith(".json")) continue;
-      const filePath = path.join(sessionsDir, file);
-      try {
-        const stats = fs.statSync(filePath);
-        if (stats.mtimeMs < cutoff) {
-          try {
-            fs.unlinkSync(filePath);
-          } catch (e) {}
-          continue;
-        }
-
-        const data = JSON.parse(fs.readFileSync(filePath, "utf-8"));
-        activeSessions.push(data);
-      } catch (e) {
-        // ignore
-      }
-    }
-
-    // 按照更新时间排序，最新鲜的在最上面
-    activeSessions.sort((a, b) => b.lastUpdatedAt - a.lastUpdatedAt);
-    setSessions(activeSessions);
-    setIsLoading(false);
   };
 
   // 根据状态分配图标和颜色

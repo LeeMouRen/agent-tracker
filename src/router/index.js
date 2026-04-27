@@ -44,6 +44,8 @@ class AgentRouter {
       // TODO: 实现 AppleTerminalNavigator
     }
 
+    const requiresInnerSwitch = Boolean(routingInfo.hasTmux || routingInfo.hasZellij);
+
     // 第二阶段：内部复用器激活 (Inner Multiplexer Activation)
     // 需要等待短暂时间，确保操作系统完成了应用置前动画，防止由于窗口还没获得焦点导致的竞态问题
     return new Promise((resolve) => {
@@ -57,7 +59,12 @@ class AgentRouter {
         }
 
         console.log("[Router] 路由跳转指令执行完毕");
-        resolve(externalTermActivated || multiplexerActivated);
+        if (requiresInnerSwitch) {
+          resolve(Boolean(multiplexerActivated));
+          return;
+        }
+
+        resolve(Boolean(externalTermActivated));
       }, 150); // 150ms 延迟通常足够 macOS 完成窗口前置
     });
   }

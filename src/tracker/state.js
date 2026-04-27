@@ -7,6 +7,10 @@ const DATA_DIR = path.join(require('os').homedir(), '.agent-tracker');
 const SESSIONS_DIR = path.join(DATA_DIR, 'sessions');
 
 class StateManager {
+  static toSessionFilePath(sessionId) {
+    return path.join(SESSIONS_DIR, `${String(sessionId || '').replace(/[/\\:]/g, '_')}.json`);
+  }
+
   static mergeRoutingInfo(currentState, nextState) {
     const existing = currentState?.routingInfo || {};
     const incoming = nextState?.routingInfo || {};
@@ -89,7 +93,7 @@ class StateManager {
       return false;
     }
 
-    const sessionFile = path.join(SESSIONS_DIR, `${sessionId.replace(/[/\\:]/g, '_')}.json`);
+    const sessionFile = this.toSessionFilePath(sessionId);
     let currentState = {};
 
     // 如果文件已存在，先读取老状态
@@ -131,8 +135,12 @@ class StateManager {
       const files = fs.readdirSync(SESSIONS_DIR);
       for (const file of files) {
         if (file.endsWith('.json')) {
-          const raw = fs.readFileSync(path.join(SESSIONS_DIR, file), 'utf-8');
-          sessions.push(JSON.parse(raw));
+          try {
+            const raw = fs.readFileSync(path.join(SESSIONS_DIR, file), 'utf-8');
+            sessions.push(JSON.parse(raw));
+          } catch (e) {
+            console.error(`[StateManager] 跳过损坏的 Session 文件 ${file}: ${e.message}`);
+          }
         }
       }
     } catch (e) {
@@ -150,7 +158,7 @@ class StateManager {
 
       if (isExpired || isDoneAndOld) {
         try {
-           fs.unlinkSync(path.join(SESSIONS_DIR, `${session.sessionId}.json`));
+           fs.unlinkSync(this.toSessionFilePath(session.sessionId));
            console.log(`[StateManager] 自动清理僵尸 Session: ${session.sessionId}`);
         } catch(e) {}
       } else {
